@@ -1,4 +1,4 @@
-{% load admin_urls i18n %}
+{% load admin_urls i18n unfold %}
 
 {% if result_hidden_fields %}
     <div class="hiddenfields">
@@ -7,10 +7,14 @@
 {% endif %}
 
 {% if results %}
-    <div class="-mx-1 px-1 overflow-x-auto lg:border lg:border-base-200 lg:mx-0 lg:px-0 lg:rounded lg:shadow-sm lg:dark:border-base-800 {% if cl.model_admin.list_horizontal_scrollbar_top %}simplebar-horizontal-scrollbar-top{% endif %}" data-simplebar data-simplebar-auto-hide="false">
+    <div class="-mx-1 px-1 overflow-x-auto lg:border lg:border-base-200 lg:mx-0 lg:px-0 lg:rounded lg:shadow-sm lg:dark:border-base-800 lg:bg-white lg:dark:bg-base-900 {% if cl.model_admin.list_horizontal_scrollbar_top %}simplebar-horizontal-scrollbar-top{% endif %}" data-simplebar data-simplebar-auto-hide="false">
         <table id="result_list" class="block border-base-200 border-spacing-none border-separate w-full lg:table">
             <thead>
                 <tr>
+                    {% if cl.model_admin.list_sections|length > 0 %}
+                        <th></th>
+                    {% endif %}
+
                     {% for header in result_headers %}
                         <th class="align-middle font-semibold py-2 text-left text-font-important-light dark:text-font-important-dark whitespace-nowrap {{ header.class_attrib }} {% if "action-toggle" in header.text and forloop.counter == 1 %}lg:px-3 lg:w-10{% else %}hidden px-3 lg:table-cell{% endif %}" scope="col">
                             <div class="flex items-center">
@@ -65,8 +69,8 @@
                 </tr>
             </thead>
 
-            <tbody class="block lg:table-row-group">
-                {% for result in results %}
+            {% for result in results %}
+                <tbody class="block lg:table-row-group" x-data="{rowOpen: false}">
                     {% if result.form and result.form.non_field_errors %}
                         <tr>
                             <td class="text-left" colspan="{{ result|length }}">
@@ -76,47 +80,39 @@
                     {% endif %}
 
                     <tr class="{% cycle '' 'bg-base-50 dark:bg-white/[.02]' %} block border mb-3 rounded shadow-sm lg:table-row lg:border-none lg:mb-0 lg:shadow-none dark:border-base-800">
+                        {% if cl.model_admin.list_sections|length > 0 %}
+                            <td class="align-middle border-t border-base-200 cursor-pointer pl-3 relative select-none text-center dark:border-base-800 w-0" x-on:click="rowOpen = !rowOpen">
+                                <div class="absolute bg-primary-600 -bottom-px left-0 top-0 w-0.5 z-10" x-show="rowOpen"></div>
+                                <span class="material-symbols-outlined !block -rotate-90 transition-all" x-bind:class="rowOpen && 'rotate-0'">
+                                    expand_more
+                                </span>
+                            </td>
+                        {% endif %}
+
                         {% for item in result %}
                             {{ item }}
                         {% endfor %}
-                        {% include 'unfold/helpers/actions_row.html' with actions=actions_row instance_pk=result.instance_pk %}
+
+                        {% include 'unfold/helpers/actions_row.html' with actions=actions_row instance_pk=result.instance.pk %}
                     </tr>
-                {% endfor %}
-            </tbody>
+
+                    {% if cl.model_admin.list_sections|length > 0 %}
+                        <tr x-show="rowOpen">
+                            <td colspan="{{ result|length|add:1 }}" class="bg-base-200/10 border-t border-base-200 relative shadow-inner p-3 dark:border-base-800">
+                                <div class="absolute bg-primary-600 h-full left-0 top-0 w-0.5"></div>
+
+                                <div class="grid gap-3 {{ cl.model_admin.list_sections_classes }}">
+                                    {% for section in cl.model_admin.list_sections %}
+                                        {% render_section cl.model_admin.list_sections|index:forloop.counter0 result.instance %}
+                                    {% endfor %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            {% endfor %}
         </table>
     </div>
 {% else %}
-    {% url cl.opts|admin_urlname:"add" as add_url %}
-    {% blocktranslate with name=cl.opts.verbose_name asvar title %}Add {{ name }}{% endblocktranslate %}
-
-    <div class="border border-base-200 flex flex-col items-center px-8 py-24 rounded shadow-sm dark:border-base-800">
-        <div class="bg-base-100 flex h-24 items-center justify-center mb-8 rounded-full w-24 dark:bg-base-800">
-            <span class="material-symbols-outlined text-base-500 !text-5xl dark:text-base-400">inbox</span>
-        </div>
-
-        <h2 class="font-semibold mb-1 text-xl text-font-important-light dark:text-font-important-dark">
-            {% trans "No results found" %}
-        </h2>
-
-        <p class="mb-6 text-center">
-            {% trans "This page yielded into no results. Create a new item or reset your filters." %}
-        </p>
-
-        {% if has_add_permission or cl.has_filters %}
-            <div class="flex flex-col gap-4 justify-center w-full lg:flex-row">
-                {% if has_add_permission %}
-                    <a href="{% add_preserved_filters add_url is_popup to_field %}" class="bg-primary-600 flex flex-row font-medium gap-2 items-center h-9.5 justify-center px-3 py-2 rounded text-white w-full lg:w-auto">
-                        <span class="material-symbols-outlined text-white">add</span> {{ title }}
-                    </a>
-                {% endif %}
-
-
-                {% if cl.has_filters %}
-                    <a href="{{ cl.clear_all_filters_qs }}" class="border border-base-200 flex flex-row font-medium gap-2 group/button h-9.5 items-center justify-center px-3 py-2 rounded transition-all w-full hover:text-primary-600 lg:w-auto dark:border-base-700 dark:hover:bg-base-900 dark:hover:text-primary-500">
-                        <span class="material-symbols-outlined group-hover/button:text-primary-600 dark:group-hover/button:text-base-500 text-base-400 dark:text-base-500">filter_list_off</span> {% trans "Reset filters" %}
-                    </a>
-                {% endif %}
-            </div>
-        {% endif %}
-    </div>
+    {% include 'unfold/helpers/empty_results.html' %}
 {% endif %}
